@@ -13,6 +13,7 @@
 | Кэш / Токены | Redis |
 | Миграции | Alembic |
 | Валидация | Pydantic v2 |
+| ORM | SQLAlchemy 2.0 (async) + GeoAlchemy2 |
 | Аутентификация | JWT (access + refresh токены, refresh хранятся в Redis) |
 | Rate Limiting | slowapi |
 | Фронтенд | Веб-приложение (планируется) |
@@ -67,13 +68,16 @@
 | has_hot_water | BOOLEAN, DEFAULT false | Есть горячая вода |
 | has_soap | BOOLEAN, DEFAULT false | Есть мыло |
 | has_dryer | BOOLEAN, DEFAULT false | Есть сушилка для рук |
-| paper_type | ENUM (none, in_cabin, dispenser, both), DEFAULT none | Наличие и расположение туалетной бумаги |
+| paper_type | ENUM (unknown, none, in_cabin, dispenser, both), DEFAULT unknown | Наличие и расположение туалетной бумаги |
 | has_child_toilet | BOOLEAN, DEFAULT false | Есть детский унитаз/писуар |
 | has_changing_table | BOOLEAN, DEFAULT false | Есть пеленальный столик |
 | is_accessible | BOOLEAN, DEFAULT false | Доступен для маломобильных |
 | cabin_count | INTEGER, NULL | Количество кабинок |
-| opening_hours | JSONB, NULL | Часы работы (формат: `{"mon": ["09:00","21:00"], ...}`) |
+| opening_hours | JSONB, NULL | Часы работы (формат: `{"mon": ["09:00","21:00"], ...}`). Валидируется через JSON Schema: ключи — дни недели (`mon`–`sun`, `hol` для праздников), значения — массив из 2 или 4 строк `"HH:MM"` (1 или 2 интервала). `"00:00","00:00"` = круглосуточно, `null` = выходной. |
 | is_verified | BOOLEAN, DEFAULT false | Проверен модератором |
+| is_deleted | BOOLEAN, DEFAULT false | Soft delete (для модератора — hard delete) |
+| rating_avg | DECIMAL(2,1), DEFAULT NULL | Средний рейтинг (пересчитывается триггером при изменении отзывов) |
+| reviews_count | INTEGER, DEFAULT 0 | Количество отзывов (пересчитывается триггером) |
 | last_confirmed_at | TIMESTAMP, NULL | Когда последний раз подтвердили |
 | created_by | UUID, FK → users.id | Кто добавил |
 | created_at | TIMESTAMP | Дата создания |
@@ -81,7 +85,7 @@
 
 > `is_open_now` — **не хранится в БД**, вычисляется на лету из `opening_hours`. Кэшируется в Redis на 5 минут.
 
-> `paper_type` заменяет отдельное поле `has_paper`: `none` = нет бумаги, остальные значения = есть.
+> `paper_type` заменяет отдельное поле `has_paper`: `unknown` = не указано, `none` = нет бумаги, остальные значения = есть.
 
 ---
 
@@ -180,16 +184,72 @@
 
 > При logout — токен удаляется из Redis. Это гарантирует инвалидацию refresh-токена.
 
+> Максимум 5 одновременных refresh-токенов на пользователя. При превышении — самый старый токен удаляется (FIFO).
+
+---
+
+### Индексы БД
+
+| Таблица | Индекс | Тип | Назначение |
+|---------|--------|-----|------------|
+| toilets | `idx_toilets_geom` | GiST | Гео-поиск `ST_DWithin` |
+| toilets | `idx_toilets_created_at` | B-tree | Сортировка по дате |
+| toilets | `idx_toilets_created_by` | B-tree | Туалеты пользователя |
+| toilets | `idx_toilets_gender` | B-tree | Фильтр по полу |
+| toilets | `idx_toilets_toilet_type` | B-tree | Фильтр по типу |
+| toilets | `idx_toilets_is_deleted` | B-tree | Исключение удалённых |
+| toilets | `idx_toilets_is_verified` | B-tree | Фильтр верификации |
+| reviews | `idx_reviews_toilet_id` | B-tree | Отзывы туалета |
+| reviews | `idx_reviews_user_id` | B-tree | Отзывы пользователя |
+| reviews | `uniq_review_toilet_user` | UNIQUE | Один отзыв на туалет от пользователя |
+| confirmations | `uniq_confirmation_toilet_user` | UNIQUE | Одно подтверждение на туалет от пользователя |
+| reports | `idx_reports_status` | B-tree | Фильтр по статусу |
+| users | `idx_users_email` | UNIQUE | Поиск по email |
+| users | `idx_users_nickname` | UNIQUE | Поиск по никнейму |
+
 ---
 
 ## REST API
 
 ### Общие правила
 
-- **Анонимный доступ** — поиск туалетов (`/nearby`, `GET /toilets/{id}`) и просмотр отзывов доступны без авторизации
+- **Анонимный доступ** — поиск туалетов (`/nearby`, `/search`, `GET /toilets/{id}`) и просмотр отзывов доступны без авторизации
 - **Rate limiting** — 100 запросов/мин для анонимов, 300 для авторизованных
-- **Пагинация** — cursor-based (используется `cursor` + `limit`, а не `offset`)
-- **Soft delete** — удаление туалетов через `is_deleted` (не物理 удаление), для модератора — hard delete
+- **Пагинация** — cursor-based:
+  - Для `/nearby` — курсор на `(distance_m, id)` (см. параметры)
+  - Для остальных — курсор на `(created_at, id)`, `limit` (по умолч. 20)
+- **Soft delete** — удаление туалетов через `is_deleted = true` (hard delete только для модератора)
+- **Анти-спам** — лимит 10 туалетов и 20 отзывов в день на пользователя
+
+### Формат ошибок
+
+Все ошибки возвращаются в едином формате:
+
+```json
+{
+  "detail": "Краткое описание ошибки",
+  "code": "VALIDATION_ERROR",
+  "fields": [
+    {"field": "email", "message": "Invalid email format"}
+  ]
+}
+```
+
+Коды HTTP: `400` (валидация), `401` (не авторизован), `403` (нет прав), `404` (не найдено), `409` (конфликт, напр. дубликат), `422` (ошибка схемы Pydantic), `429` (rate limit).
+
+### CORS и Security
+
+- CORS: разрешённые origins настраиваются через `CORS_ORIGINS` в `.env` (для разработки — `*`)
+- Security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy`
+- JWT access-токен: RS256, TTL 15 минут
+- JWT refresh-токен: хранится в Redis, TTL 30 дней
+- Ротация JWT секретов через версию ключа в payload (`kid`)
+
+### Health Check
+
+| Метод | Эндпоинт | Описание |
+|-------|----------|----------|
+| GET | `/health` | Проверка доступности API + БД + Redis |
 
 ### Аутентификация
 
@@ -200,6 +260,8 @@
 | POST | `/api/v1/auth/refresh` | Обновление access-токена | По refresh |
 | POST | `/api/v1/auth/logout` | Выход (инвалидирует refresh) | Авторизованный |
 | POST | `/api/v1/auth/verify-email` | Подтверждение email | По токену из письма |
+| POST | `/api/v1/auth/forgot-password` | Запрос сброса пароля (отправляет письмо с токеном) | Аноним |
+| POST | `/api/v1/auth/reset-password` | Сброс пароля по токену из письма | По токену из письма |
 | GET | `/api/v1/auth/me` | Текущий пользователь | Авторизованный |
 | PATCH | `/api/v1/auth/me` | Обновить профиль | Авторизованный |
 | POST | `/api/v1/auth/me/avatar` | Загрузить аватар | Авторизованный |
@@ -209,6 +271,7 @@
 | Метод | Эндпоинт | Описание | Доступ |
 |-------|----------|----------|--------|
 | GET | `/api/v1/toilets/nearby` | Поиск ближайших с фильтрами | **Аноним** |
+| GET | `/api/v1/toilets/search` | Текстовый поиск по названию/адресу | **Аноним** |
 | GET | `/api/v1/toilets/{id}` | Детали туалета + отзывы | **Аноним** |
 | POST | `/api/v1/toilets/` | Добавить туалет | user+ |
 | PATCH | `/api/v1/toilets/{id}` | Обновить данные | owner, mod, admin |
@@ -228,6 +291,12 @@
 - `toilet_type` — indoor / outdoor / portable
 - `is_open_now` — true (показать только открытые сейчас)
 - `min_rating` — минимальный средний рейтинг
+- `limit` — количество результатов (по умолч. 20, макс. 50)
+- `cursor` — курсор для пагинации: base64-кодированный JSON `{"distance_m": 150.5, "id": "uuid"}`, возвращает записи где `distance > cursor.distance_m OR (distance = cursor.distance_m AND id > cursor.id)`
+
+**Параметры `/search`:**
+- `q` (обязательное) — поисковый запрос (название или адрес, PostgreSQL `ILIKE` или `ts_vector` полнотекстовый поиск)
+- `lat`, `lon` (опциональные) — если указаны, результаты сортируются по расстоянию
 - `limit` — количество результатов (по умолч. 20, макс. 50)
 - `cursor` — курсор для пагинации
 
@@ -295,6 +364,21 @@
 | PATCH | `/api/v1/users/{id}/status` | Заблокировать/разблокировать | mod, admin |
 | DELETE | `/api/v1/users/{id}` | Удалить пользователя | admin |
 
+### Хранение файлов
+
+- **MVP:** локальная файловая система (`/media/photos/`), раздача через FastAPI static files
+- **Production:** S3-совместимое хранилище (MinIO в Docker / внешний S3)
+- Путь файла: `/{entity_type}/{entity_id}/{uuid}.{ext}` (напр. `/toilets/abc123/def456.webp`)
+- Формат URL: `{BASE_URL}/media/{path}`
+
+### Удаление аккаунта
+
+При удалении пользователя (admin или сам пользователь):
+- Туалеты, созданные пользователем: `created_by` → `NULL` (туалеты остаются)
+- Отзывы пользователя: удаляются (cascade), `rating_avg` / `reviews_count` пересчитываются
+- Фото туалетов пользователя: остаются (туалет не должен терять фото)
+- Фото отзывов пользователя: удаляются вместе с отзывами (cascade)
+
 ---
 
 ## Структура проекта (бэкенд)
@@ -341,7 +425,8 @@ wtfapp/
 │   └── utils/
 │       ├── __init__.py
 │       ├── geo.py            # Гео-утилиты (расчёт расстояний)
-│       └── storage.py        # Загрузка и хранение файлов
+│       ├── storage.py        # Загрузка и хранение файлов
+│       └── email.py          # Отправка email (верификация, сброс пароля)
 ├── scripts/
 │   └── seed_osm.py           # Импорт демо-данных из OpenStreetMap
 ├── tests/
@@ -366,10 +451,12 @@ wtfapp/
 - [ ] Регистрация и авторизация (JWT, refresh в Redis)
 - [ ] CRUD туалетов (координаты в самой записи)
 - [ ] Поиск ближайших туалетов с фильтрами (PostGIS `ST_DWithin`)
+- [ ] Текстовый поиск туалетов по названию/адресу (`/search`)
 - [ ] Отзывы: создание, редактирование, удаление (только свои)
 - [ ] Загрузка фотографий (с лимитами)
 - [ ] Роли (admin, moderator, user)
 - [ ] Анонимный доступ к поиску и просмотру
+- [ ] Средний рейтинг и количество отзывов (триггер при INSERT/UPDATE/DELETE отзыва)
 - [ ] Rate limiting
 - [ ] docker-compose для локальной разработки
 - [ ] Скрипт импорта демо-данных из OSM
@@ -381,8 +468,8 @@ wtfapp/
 - [ ] Модерация туалетов (верификация)
 - [ ] Жалобы на точки/отзывы/пользователей
 - [ ] Часы работы и статус "открыто сейчас" (вычисляемый, кэш в Redis)
-- [ ] Средний рейтинг туалета (вычисляемый, materialized view или кэш)
 - [ ] Email-верификация
+- [ ] Password reset (восстановление пароля)
 
 ### Приоритет 3
 
