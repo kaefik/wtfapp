@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific
+**/keys/*.pem
+**/keys/*.key
+uploads/
+media/
+*.sqlite3
+tasks/2026-05-21/in_progress/
+tasks/2026-05-21/done/
+tasks/2026-05-21/blocked/
+
+__pycache__/
+*.egg-info/
+*.egg
