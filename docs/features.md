@@ -13,7 +13,7 @@
 
 ### Authentication
 - JWT RS256 (access token 15 min, refresh token 30 days via httpOnly cookie)
-- Registration with email verification
+- Registration without email verification (auto is_email_verified=True)
 - Login / Logout with refresh token rotation
 - Password reset via email token
 - Profile management (nickname, full_name, birth_date, avatar upload)
@@ -53,7 +53,7 @@
 - Rate limiting: 100/min anonymous, 300/min authenticated (Redis INCR)
 - CORS configurable
 - Security headers (X-Content-Type-Options, X-Frame-Options)
-- Bcrypt password hashing
+- Bcrypt password hashing (direct bcrypt, no passlib)
 - httpOnly + SameSite=Lax + Secure cookies
 
 ### API
@@ -66,6 +66,9 @@
 
 ### Seed Data
 - Demo script with 3 users and 20 toilets in Moscow
+
+### Initial Migration
+- Alembic initial migration with all tables (users, toilets, reviews, photos, reports, favorites)
 
 ---
 
@@ -89,19 +92,23 @@
 - Автоматический refresh при 401 с дедупликацией (promise-based mutex)
 - Bearer token авторизация
 
-### Страницы (12 роутов)
+### Страницы (13 роутов)
 - MapPage — карта (Leaflet) + BottomSheet (vaul) + SearchBar + FilterPanel
 - ToiletPage — детали туалета + фото-галерея + отзывы
 - AddToiletPage — форма добавления/редактирования (Zod валидация)
 - SearchPage — текстовый поиск с debounce + недавние запросы
 - LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage
 - ProfilePage, ProfileEditPage
+- FavoritesPage — список избранных туалетов (защищённый роут)
 - NotFoundPage (404)
 
 ### Компоненты карты
 - MapView — Leaflet с OSM тайлами + обработка перемещений
 - ToiletMarker — L.divIcon с цветом по рейтингу + иконка по статусу
+- ClusterMarkers — кластеризация маркеров при удалении (Supercluster)
 - UserLocation — синяя точка + круг точности
+- ZoomButtons — кастомные кнопки зума (ZoomIn/ZoomOut) через mapStore
+- MapLegend — всплывающая легенда цветов маркеров
 - BottomSheet (vaul) — свайпаемый drawer с infinite scroll
 
 ### Компоненты туалетов/отзывов
@@ -114,6 +121,11 @@
 - Button, Input, Select, Modal (Radix Dialog), Toast, Badge
 - Loader, Skeleton, EmptyState, ErrorBoundary
 - NavBar — нижняя навигация (3 таба: карта, избранное, профиль)
+
+### Избранное
+- Добавление/удаление туалета из избранного (toggle)
+- Список избранных туалетов с пагинацией
+- FavoritesPage — защищённый роут в MapLayout с NavBar
 
 ### Фильтры
 - FilterPanel — slide-up модалка с пресетами радиуса, пол, тип, удобства, рейтинг
