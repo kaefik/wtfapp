@@ -61,6 +61,7 @@ app.include_router(reviews.router)
 app.include_router(reports.router)
 app.include_router(users.router)
 
+os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
 app.mount("/media", StaticFiles(directory=settings.MEDIA_ROOT), name="media")
 
 
