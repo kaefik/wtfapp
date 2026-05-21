@@ -1,6 +1,6 @@
-# WTFApp Backend Features
+# WTFApp Features
 
-## MVP (Priority 1)
+## Backend (MVP — Priority 1)
 
 ### Infrastructure
 - FastAPI + uvicorn async web framework
@@ -66,3 +66,60 @@
 
 ### Seed Data
 - Demo script with 3 users and 20 toilets in Moscow
+
+---
+
+## Frontend (MVP — Priority 1)
+
+### Infrastructure
+- Vite 8 + React 19 + TypeScript
+- Tailwind CSS 4 with @tailwindcss/vite plugin
+- Code splitting (React.lazy + Suspense) для всех страниц
+- PWA: vite-plugin-pwa (Service Worker, manifest, offline статики)
+- Docker: multi-stage build (node -> nginx)
+- MSW (Mock Service Worker) для разработки без бэкенда
+
+### State Management
+- Zustand stores: authStore, mapStore, uiStore
+- Access token хранится только в памяти (Zustand), не в localStorage
+- Refresh через httpOnly cookie (безопасный auth flow)
+
+### API Client
+- ky HTTP-клиент с interceptors
+- Автоматический refresh при 401 с дедупликацией (promise-based mutex)
+- Bearer token авторизация
+
+### Страницы (12 роутов)
+- MapPage — карта (Leaflet) + BottomSheet (vaul) + SearchBar + FilterPanel
+- ToiletPage — детали туалета + фото-галерея + отзывы
+- AddToiletPage — форма добавления/редактирования (Zod валидация)
+- SearchPage — текстовый поиск с debounce + недавние запросы
+- LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage
+- ProfilePage, ProfileEditPage
+- NotFoundPage (404)
+
+### Компоненты карты
+- MapView — Leaflet с OSM тайлами + обработка перемещений
+- ToiletMarker — L.divIcon с цветом по рейтингу + иконка по статусу
+- UserLocation — синяя точка + круг точности
+- BottomSheet (vaul) — свайпаемый drawer с infinite scroll
+
+### Компоненты туалетов/отзывов
+- ToiletCard, ToiletDetail, ToiletForm (react-hook-form + Zod)
+- ReviewList (cursor-пагинация), ReviewCard, ReviewForm
+- AmenitiesBadges, OpeningHours, RatingStars
+- PhotoUploader, PhotoGallery, AvatarUploader
+
+### UI-примитивы
+- Button, Input, Select, Modal (Radix Dialog), Toast, Badge
+- Loader, Skeleton, EmptyState, ErrorBoundary
+- NavBar — нижняя навигация (3 таба: карта, избранное, профиль)
+
+### Фильтры
+- FilterPanel — slide-up модалка с пресетами радиуса, пол, тип, удобства, рейтинг
+- Фильтры → mapStore → useNearbyToilets → API запрос
+
+### Обработка ошибок
+- Toast-уведомления для всех сценариев (сеть, 401, 403, 404, 410, 429, 500)
+- ErrorBoundary для непредвиденных ошибок
+- Skeleton loading для всех loading-состояний
