@@ -16,6 +16,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'))
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
 const ProfileEditPage = lazy(() => import('@/pages/ProfileEditPage'))
+const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 export default function App() {
@@ -31,6 +32,8 @@ export default function App() {
         <Routes>
           <Route element={<MapLayout />}>
             <Route path="/" element={<MapPage />} />
+            <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           </Route>
           <Route path="/toilets/:id" element={<ToiletPage />} />
           <Route path="/toilets/new" element={<ProtectedRoute><AddToiletPage /></ProtectedRoute>} />
@@ -41,7 +44,6 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute><ProfileEditPage /></ProtectedRoute>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

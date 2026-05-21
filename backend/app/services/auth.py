@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timezone
 from uuid import UUID
 
-from passlib.context import CryptContext
+import bcrypt
 from redis.asyncio import Redis
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,15 +26,14 @@ from app.utils.email import send_verification_email, send_password_reset_email
 from app.utils.storage import save_file, get_url
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 async def register(
@@ -57,16 +56,13 @@ async def register(
         password_hash=hash_password(password),
         birth_date=birth_date,
         role=UserRole.USER,
+        is_email_verified=True,
     )
     db.add(user)
     await db.flush()
 
     access_token = create_access_token(str(user.id), user.role.value)
     refresh_jti = await create_refresh_token(redis, str(user.id))
-
-    token = secrets.token_urlsafe(32)
-    await store_email_token(redis, token, str(user.id))
-    await send_verification_email(email, token)
 
     return {
         "access_token": access_token,

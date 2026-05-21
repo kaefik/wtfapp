@@ -4,6 +4,8 @@ import { mockUser } from './data/users'
 
 const API = '/api/v1'
 
+const favoriteIds = new Set<string>()
+
 export const handlers = [
   http.post(`${API}/auth/login`, async () => {
     return HttpResponse.json({
@@ -124,5 +126,20 @@ export const handlers = [
 
   http.post(`${API}/auth/me/avatar`, async () => {
     return HttpResponse.json({ ...mockUser, avatar_url: 'https://example.com/avatar.jpg' })
+  }),
+
+  http.get(`${API}/favorites`, async () => {
+    const items = mockToilets.filter((t) => favoriteIds.has(t.id))
+    return HttpResponse.json({ items, next_cursor: null, total: items.length })
+  }),
+
+  http.post(`${API}/toilets/:toiletId/favorite`, async ({ params }) => {
+    favoriteIds.add(params['toiletId'] as string)
+    return new HttpResponse(null, { status: 200 })
+  }),
+
+  http.delete(`${API}/toilets/:toiletId/favorite`, async ({ params }) => {
+    favoriteIds.delete(params['toiletId'] as string)
+    return new HttpResponse(null, { status: 200 })
   }),
 ]

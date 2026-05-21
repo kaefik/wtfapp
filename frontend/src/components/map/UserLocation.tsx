@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMap, Circle, Marker } from 'react-leaflet'
 import L from 'leaflet'
 const userIcon = L.divIcon({
@@ -16,11 +16,14 @@ interface UserLocationProps {
 export function UserLocation({ position, error }: UserLocationProps) {
   const map = useMap()
 
+  const hasFlownRef = useRef(false)
+
   useEffect(() => {
-    if (position) {
+    if (position && !hasFlownRef.current) {
+      hasFlownRef.current = true
       map.flyTo(position, map.getZoom(), { duration: 1 })
     }
-  }, [])
+  }, [position, map])
 
   if (!position || error) return null
 

@@ -57,3 +57,18 @@ export async function uploadToiletPhoto(toiletId: string, file: File): Promise<{
   formData.append('file', file)
   return apiClient.post(`toilets/${toiletId}/photos`, { body: formData }).json<{ url: string }>()
 }
+
+export async function getFavorites(cursor?: string, limit?: number): Promise<PaginatedResponse<Toilet>> {
+  const searchParams: Record<string, string> = {}
+  if (cursor) searchParams.cursor = cursor
+  if (limit) searchParams.limit = String(limit)
+  return apiClient.get('favorites', { searchParams }).json<PaginatedResponse<Toilet>>()
+}
+
+export async function addToFavorite(toiletId: string): Promise<void> {
+  await apiClient.post(`toilets/${toiletId}/favorite`)
+}
+
+export async function removeFromFavorite(toiletId: string): Promise<void> {
+  await apiClient.delete(`toilets/${toiletId}/favorite`)
+}

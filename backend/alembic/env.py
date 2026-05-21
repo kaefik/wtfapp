@@ -4,6 +4,8 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
+import geoalchemy2
+
 from app.database import Base
 from app.config import get_settings
 
@@ -17,6 +19,61 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+POSTGIS_TABLES = {
+    "spatial_ref_sys",
+    "topology",
+    "layer",
+    "edges",
+    "faces",
+    "addr",
+    "addrfeat",
+    "bg",
+    "county",
+    "cousub",
+    "featnames",
+    "loader_lookuptables",
+    "loader_platform",
+    "loader_variables",
+    "pagc_gaz",
+    "pagc_lex",
+    "pagc_rules",
+    "place",
+    "place_lookup",
+    "state",
+    "state_lookup",
+    "street_type_lookup",
+    "tabblock",
+    "tabblock20",
+    "tract",
+    "zcta5",
+    "zip_lookup",
+    "zip_lookup_all",
+    "zip_lookup_base",
+    "zip_state",
+    "zip_state_loc",
+    "county_lookup",
+    "countysub_lookup",
+    "direction_lookup",
+    "secondary_unit_lookup",
+    "geocode_settings",
+    "geocode_settings_default",
+}
+
+
+def _include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table":
+        if name in POSTGIS_TABLES:
+            return False
+        if name.startswith("tiger.") or name.startswith("topology."):
+            return False
+    return True
+
+
+def _render_item(type_, obj, autogen_context):
+    if type_ == "type" and isinstance(obj, geoalchemy2.types.Geometry):
+        autogen_context.imports.add("import geoalchemy2")
+    return False
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -25,13 +82,20 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=_include_object,
+        render_item=_render_item,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection):
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=_include_object,
+        render_item=_render_item,
+    )
     with context.begin_transaction():
         context.execute("CREATE EXTENSION IF NOT EXISTS postgis")
         context.run_migrations()
