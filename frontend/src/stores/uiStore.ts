@@ -12,6 +12,8 @@ interface UIState {
   setBottomSheetState: (state: 'collapsed' | 'expanded') => void
   isFilterPanelOpen: boolean
   setFilterPanelOpen: (open: boolean) => void
+  desktopFilterOpen: boolean
+  setDesktopFilterOpen: (open: boolean) => void
   isOffline: boolean
   setOffline: (offline: boolean) => void
   toasts: Toast[]
@@ -26,6 +28,8 @@ export const useUIStore = create<UIState>((set) => ({
   setBottomSheetState: (state) => set({ bottomSheetState: state }),
   isFilterPanelOpen: false,
   setFilterPanelOpen: (open) => set({ isFilterPanelOpen: open }),
+  desktopFilterOpen: false,
+  setDesktopFilterOpen: (open) => set({ desktopFilterOpen: open }),
   isOffline: false,
   setOffline: (offline) => set({ isOffline: offline }),
   toasts: [],

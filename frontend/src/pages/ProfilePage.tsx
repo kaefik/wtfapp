@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Edit, LogOut, MapPin, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Loader } from '@/components/common/Loader'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading, logout } = useAuth()
   const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
 
-  if (isLoading) return <Loader className="min-h-screen" />
+  if (isLoading) return <Loader className={isDesktop ? 'h-64' : 'min-h-screen'} />
 
   if (!isAuthenticated || !user) {
     navigate('/login')
@@ -21,11 +23,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className={isDesktop ? '' : 'min-h-screen pb-20'}>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3">
-        <button onClick={() => navigate(-1)} className="text-gray-600">
-          <ChevronLeft size={24} />
-        </button>
+        {!isDesktop && (
+          <button onClick={() => navigate(-1)} className="text-gray-600">
+            <ChevronLeft size={24} />
+          </button>
+        )}
         <h1 className="text-lg font-semibold">Профиль</h1>
         <button onClick={() => navigate('/profile/edit')} className="text-primary-600">
           <Edit size={18} />

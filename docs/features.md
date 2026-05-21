@@ -127,9 +127,21 @@
 - Список избранных туалетов с пагинацией
 - FavoritesPage — защищённый роут в MapLayout с NavBar
 
+### Desktop Adaptive Layout
+- useIsDesktop hook (min-width: 1024px breakpoint)
+- DesktopHeader — top nav bar with logo, navigation links, auth state
+- SidePanel — left sidebar (w-80) with search, filters, outlet content
+- MapLayout desktop mode: header + sidebar + map side-by-side
+- FilterPanel compact mode for desktop sidebar
+- ToiletListContent — extracted reusable toilet list with infinite scroll
+- nearbyStore (Zustand) — shared nearby toilet state (replaces useNearbyToilets hook)
+- MapResizeHandler — ResizeObserver to invalidate map on container changes
+- Desktop-specific marker click navigation (no popup)
+- Hide NavBar on mobile when viewing toilet detail or search page
+
 ### Фильтры
-- FilterPanel — slide-up модалка с пресетами радиуса, пол, тип, удобства, рейтинг
-- Фильтры → mapStore → useNearbyToilets → API запрос
+- FilterPanel — slide-up модалка (mobile) / compact panel (desktop)
+- Фильтры → mapStore → nearbyStore → API запрос
 
 ### Обработка ошибок
 - Toast-уведомления для всех сценариев (сеть, 401, 403, 404, 410, 429, 500)

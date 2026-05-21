@@ -8,7 +8,7 @@ export function SearchBar() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query, 300)
   const navigate = useNavigate()
-  const { setFilterPanelOpen } = useUIStore()
+  const { setFilterPanelOpen, setDesktopFilterOpen } = useUIStore()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,13 +17,18 @@ export function SearchBar() {
     }
   }
 
+  const handleFilterClick = () => {
+    setFilterPanelOpen(true)
+    setDesktopFilterOpen(true)
+  }
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="absolute left-4 right-4 top-4 z-30 flex items-center gap-2"
+      className="flex items-center gap-2"
     >
-      <div className="flex flex-1 items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-lg">
-        <Search size={18} className="text-gray-400" />
+      <div className="flex flex-1 items-center gap-2 rounded-xl bg-gray-100 px-3 py-2">
+        <Search size={16} className="text-gray-400" />
         <input
           type="text"
           value={query}
@@ -34,11 +39,11 @@ export function SearchBar() {
       </div>
       <button
         type="button"
-        onClick={() => setFilterPanelOpen(true)}
-        className="rounded-xl bg-white p-2.5 shadow-lg text-gray-600 hover:text-primary-600"
+        onClick={handleFilterClick}
+        className="rounded-xl bg-gray-100 p-2 text-gray-600 hover:text-primary-600"
         aria-label="Фильтры"
       >
-        <SlidersHorizontal size={18} />
+        <SlidersHorizontal size={16} />
       </button>
     </form>
   )

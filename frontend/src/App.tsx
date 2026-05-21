@@ -31,19 +31,20 @@ export default function App() {
       <Suspense fallback={<Loader className="h-screen" />}>
         <Routes>
           <Route element={<MapLayout />}>
-            <Route path="/" element={<MapPage />} />
+            <Route index element={<MapPage />} />
+            <Route path="/toilets/:id" element={<ToiletPage />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           </Route>
-          <Route path="/toilets/:id" element={<ToiletPage />} />
-          <Route path="/toilets/new" element={<ProtectedRoute><AddToiletPage /></ProtectedRoute>} />
-          <Route path="/toilets/:id/edit" element={<ProtectedRoute><AddToiletPage /></ProtectedRoute>} />
-          <Route path="/search" element={<SearchPage />} />
+
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/toilets/new" element={<ProtectedRoute><AddToiletPage /></ProtectedRoute>} />
+          <Route path="/toilets/:id/edit" element={<ProtectedRoute><AddToiletPage /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute><ProfileEditPage /></ProtectedRoute>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import { useMapStore } from '@/stores/mapStore'
 import { useGeolocation } from '@/hooks/useGeolocation'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { SearchBar } from '@/components/layout/SearchBar'
 import { BottomSheet } from '@/components/layout/BottomSheet'
 import { FilterPanel } from '@/components/layout/FilterPanel'
@@ -14,6 +15,7 @@ export function MapView() {
   const { center, zoom, setCenter, setZoom } = useMapStore()
   const geo = useGeolocation()
   const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
   const [showLegend, setShowLegend] = useState(false)
 
   useEffect(() => {
@@ -39,6 +41,7 @@ export function MapView() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapEvents />
+        <MapResizeHandler />
         <UserLocation position={geo.position} error={geo.error} />
         <ToiletMarkers />
       </MapContainer>
@@ -60,9 +63,9 @@ export function MapView() {
         </button>
       </div>
 
-      <SearchBar />
-      <BottomSheet />
-      <FilterPanel />
+      {!isDesktop && <SearchBar />}
+      {!isDesktop && <BottomSheet />}
+      {!isDesktop && <FilterPanel />}
 
       <div className="absolute bottom-20 left-4 z-30 flex flex-col gap-2">
         <button
@@ -94,6 +97,18 @@ export function MapView() {
       </div>
     </div>
   )
+}
+
+function MapResizeHandler() {
+  const map = useMap()
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize()
+    })
+    observer.observe(map.getContainer())
+    return () => observer.disconnect()
+  }, [map])
+  return null
 }
 
 function MapLegend({ onClose }: { onClose: () => void }) {

@@ -8,6 +8,7 @@ import { PhotoGallery } from '@/components/common/PhotoGallery'
 import { AmenitiesBadges } from './AmenitiesBadges'
 import { OpeningHours } from './OpeningHours'
 import { ReviewList } from '@/components/review/ReviewList'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 import type { Toilet } from '@/types/toilet'
 
 interface ToiletDetailProps {
@@ -18,14 +19,17 @@ interface ToiletDetailProps {
 
 export function ToiletDetail({ toilet, isOwner, onDelete }: ToiletDetailProps) {
   const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   return (
-    <div className="pb-20">
+    <div className={isDesktop ? '' : 'pb-20'}>
       <div className="sticky top-0 z-10 flex items-center gap-3 bg-white px-4 py-3 border-b border-gray-100">
-        <button onClick={() => navigate(-1)} className="text-gray-600">
-          <ChevronLeft size={24} />
-        </button>
+        {!isDesktop && (
+          <button onClick={() => navigate(-1)} className="text-gray-600">
+            <ChevronLeft size={24} />
+          </button>
+        )}
         <h1 className="flex-1 truncate text-lg font-semibold">{toilet.name}</h1>
         {isOwner && (
           <div className="flex gap-2">

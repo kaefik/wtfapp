@@ -2,11 +2,13 @@ import { useMemo } from 'react'
 import { Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import { useNavigate } from 'react-router-dom'
-import { useNearbyToilets } from '@/hooks/useNearbyToilets'
+import { useNearbyStore } from '@/stores/nearbyStore'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 import { formatDistance } from '@/utils/distance'
 import { RatingStars } from '@/components/common/RatingStars'
 import { Badge } from '@/components/ui/Badge'
 import { ClusterMarkers } from './ClusterMarkers'
+import type { Toilet } from '@/types/toilet'
 
 function getMarkerColor(rating: number | null): string {
   if (rating === null) return '#9ca3af'
@@ -48,7 +50,7 @@ function createMarkerIcon(toilet: { rating: number | null }) {
 }
 
 export function ToiletMarkers() {
-  const { toilets } = useNearbyToilets()
+  const toilets = useNearbyStore((s) => s.toilets)
   return (
     <ClusterMarkers>
       {toilets.map((toilet) => (
@@ -58,9 +60,21 @@ export function ToiletMarkers() {
   )
 }
 
-function ToiletMarker({ toilet }: { toilet: ReturnType<typeof useNearbyToilets>['toilets'][number] }) {
+function ToiletMarker({ toilet }: { toilet: Toilet }) {
   const navigate = useNavigate()
   const icon = useMemo(() => createMarkerIcon(toilet), [toilet])
+  const isDesktop = useIsDesktop()
+
+  if (isDesktop) {
+    return (
+      <Marker
+        position={[toilet.lat, toilet.lon]}
+        icon={icon}
+        eventHandlers={{ click: () => navigate(`/toilets/${toilet.id}`) }}
+        aria-label={`Туалет: ${toilet.name}, рейтинг ${toilet.rating ?? 'нет'}, ${toilet.distance ? formatDistance(toilet.distance) : ''}`}
+      />
+    )
+  }
 
   return (
     <Marker

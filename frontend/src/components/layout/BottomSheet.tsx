@@ -1,34 +1,9 @@
-import { useRef, useCallback } from 'react'
 import { Drawer } from 'vaul'
-import { ToiletCard } from '@/components/toilet/ToiletCard'
-import { ToiletCardSkeleton } from '@/components/common/Skeleton'
-import { EmptyState } from '@/components/common/EmptyState'
-import { useNearbyToilets } from '@/hooks/useNearbyToilets'
-import { MapPin } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { useMapStore } from '@/stores/mapStore'
+import { useNearbyStore } from '@/stores/nearbyStore'
+import { ToiletListContent } from '@/components/toilet/ToiletListContent'
 
 export function BottomSheet() {
-  const { toilets, isLoading, error, loadMore, hasNextPage } = useNearbyToilets()
-  const { filters, setFilters } = useMapStore()
-  const observerRef = useRef<IntersectionObserver | null>(null)
-
-  const lastCardRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (observerRef.current) observerRef.current.disconnect()
-      if (!hasNextPage || isLoading) return
-      observerRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting) loadMore()
-      })
-      if (node) observerRef.current.observe(node)
-    },
-    [hasNextPage, isLoading, loadMore]
-  )
-
-  const expandRadius = () => {
-    const newRadius = Math.min(filters.radius * 2, 10000)
-    setFilters({ radius: newRadius })
-  }
+  const toilets = useNearbyStore((s) => s.toilets)
 
   return (
     <Drawer.Root>
@@ -52,48 +27,8 @@ export function BottomSheet() {
           <div className="flex items-center justify-center pt-3 pb-2">
             <div className="h-1 w-10 rounded-full bg-gray-300" />
           </div>
-          <div className="flex-1 overflow-y-auto px-4 pb-20 scrollbar-hide">
-            {isLoading && toilets.length === 0 ? (
-              <div className="flex flex-col gap-3 pt-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <ToiletCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : error ? (
-              <EmptyState
-                title="Ошибка загрузки"
-                description={error}
-                action={<Button onClick={() => window.location.reload()}>Обновить</Button>}
-              />
-            ) : toilets.length === 0 ? (
-              <EmptyState
-                icon={<MapPin size={48} />}
-                title="Туалетов поблизости нет"
-                description="Попробуйте расширить поиск или добавьте туалет"
-                action={
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={expandRadius}>Расширить поиск</Button>
-                    <Button onClick={() => window.location.href = '/toilets/new'}>Добавить туалет</Button>
-                  </div>
-                }
-              />
-            ) : (
-              <div className="flex flex-col gap-3 pt-2">
-                {toilets.map((toilet, i) => (
-                  <div key={toilet.id} ref={i === toilets.length - 1 ? lastCardRef : null}>
-                    <ToiletCard toilet={toilet} />
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="flex justify-center py-4">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-primary-500" />
-                  </div>
-                )}
-                {!hasNextPage && toilets.length > 0 && (
-                  <p className="py-4 text-center text-sm text-gray-400">Больше нет</p>
-                )}
-              </div>
-            )}
+          <div className="flex-1 overflow-y-auto pb-4 scrollbar-hide">
+            <ToiletListContent />
           </div>
         </Drawer.Content>
       </Drawer.Portal>

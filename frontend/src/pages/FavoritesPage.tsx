@@ -6,10 +6,12 @@ import { ToiletCard } from '@/components/toilet/ToiletCard'
 import { Loader } from '@/components/common/Loader'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useAuth } from '@/hooks/useAuth'
+import { useIsDesktop } from '@/hooks/useIsDesktop'
 import type { Toilet } from '@/types/toilet'
 
 export default function FavoritesPage() {
   const { isAuthenticated } = useAuth()
+  const isDesktop = useIsDesktop()
   const [favorites, setFavorites] = useState<Toilet[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -60,7 +62,7 @@ export default function FavoritesPage() {
         <h1 className="text-lg font-semibold text-gray-900">Избранное</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div className={`flex-1 overflow-y-auto px-4 py-3 ${isDesktop ? '' : 'pb-20'}`}>
         {isLoading && <Loader className="py-8" />}
 
         {!isLoading && favorites.length === 0 && (
